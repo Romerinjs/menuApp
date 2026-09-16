@@ -1,0 +1,116 @@
+:root,
+:root[data-theme="dark"] {
+  /* ========================================================
+     MODO OSCURO (Dark Mode - Default)
+     ======================================================== */
+  --bg-main: #0b0f19;
+  --bg-surface: #131b2e;
+  --bg-surface-elevated: #1a243d;
+  --bg-card: rgba(22, 31, 53, 0.75);
+  --bg-glass: rgba(19, 27, 46, 0.85);
+  --bg-nav: rgba(11, 15, 25, 0.92);
+  --bg-radial-glow: rgba(30, 41, 59, 0.6);
+
+  /* Acento de marca dinámico */
+  --primary: #ff5722;
+  --primary-hover: #f44336;
+  --primary-glow: rgba(255, 87, 34, 0.35);
+  --primary-light: rgba(255, 87, 34, 0.15);
+
+  /* Acentos de estado */
+  --success: #10b981;
+  --success-glow: rgba(16, 185, 129, 0.3);
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --danger-glow: rgba(239, 68, 68, 0.25);
+  --featured-gold: #fbbf24;
+  --whatsapp-green: #25d366;
+  --whatsapp-glow: rgba(37, 211, 102, 0.35);
+
+  /* Textos */
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-inverted: #0f172a;
+
+  /* Bordes y Sombras */
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-active: rgba(255, 87, 34, 0.5);
+  --border-glass: rgba(255, 255, 255, 0.12);
+  
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 25px var(--primary-glow);
+
+  /* Hero overlay */
+  --hero-overlay-end: #0b0f19;
+
+  /* Scrollbars */
+  --scrollbar-thumb: rgba(255, 255, 255, 0.15);
+}
+
+:root[data-theme="light"] {
+  /* ========================================================
+     MODO CLARO (Light Mode Premium)
+     ======================================================== */
+  --bg-main: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #f1f5f9;
+  --bg-card: rgba(255, 255, 255, 0.95);
+  --bg-glass: rgba(255, 255, 255, 0.88);
+  --bg-nav: rgba(255, 255, 255, 0.94);
+  --bg-radial-glow: rgba(226, 232, 240, 0.8);
+
+  /* Acento de marca dinámico */
+  --primary: #ff5722;
+  --primary-hover: #f44336;
+  --primary-glow: rgba(255, 87, 34, 0.25);
+  --primary-light: rgba(255, 87, 34, 0.1);
+
+  /* Acentos de estado */
+  --success: #059669;
+  --success-glow: rgba(5, 150, 105, 0.2);
+  --warning: #d97706;
+  --danger: #dc2626;
+  --danger-glow: rgba(220, 38, 38, 0.2);
+  --featured-gold: #d97706;
+  --whatsapp-green: #15803d;
+  --whatsapp-glow: rgba(21, 128, 61, 0.25);
+
+  /* Textos */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --text-inverted: #f8fafc;
+
+  /* Bordes y Sombras */
+  --border-subtle: rgba(15, 23, 42, 0.09);
+  --border-active: rgba(255, 87, 34, 0.6);
+  --border-glass: rgba(15, 23, 42, 0.12);
+  
+  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 16px 40px rgba(15, 23, 42, 0.12);
+  --shadow-glow: 0 0 25px var(--primary-glow);
+
+  /* Hero overlay */
+  --hero-overlay-end: #f8fafc;
+
+  /* Scrollbars */
+  --scrollbar-thumb: rgba(15, 23, 42, 0.15);
+}
+
+:root {
+  /* Transiciones y constantes compartidas (Smooth 0.5s / 500ms) */
+  --transition-fast: 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-normal: 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-smooth: 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-spring: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  /* Radio de bordes */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
+}
