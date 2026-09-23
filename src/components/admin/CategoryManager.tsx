@@ -3,6 +3,7 @@ import { Plus, Trash2, Tag, Layers } from 'lucide-react';
 import { Category } from '../../types/restaurant';
 import { CategoryIcon, CATEGORY_ICON_OPTIONS } from '../common/CategoryIcon';
 import { ConfirmModal } from '../common/ConfirmModal';
+import { useToast } from '../../context/ToastContext';
 
 interface CategoryManagerProps {
   categories: Category[];
@@ -23,6 +24,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
   const [name, setName] = useState('');
   const [icon, setIcon] = useState('sandwich');
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const toast = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +38,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
     };
 
     onAddCategory(newCat);
+    toast.success(`¡Categoría "${newCat.name}" creada con éxito!`, 'Organización de Menú');
     setName('');
     setIsAdding(false);
   };
@@ -150,6 +153,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
         onConfirm={() => {
           if (categoryToDelete) {
             onDeleteCategory(categoryToDelete.id);
+            toast.info(`Categoría "${categoryToDelete.name}" eliminada`, 'Categorías');
             setCategoryToDelete(null);
           }
         }}

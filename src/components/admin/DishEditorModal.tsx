@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { X, Upload, Star, Flame, Eye, EyeOff, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { Category, Dish } from '../../types/restaurant';
 import { uploadTenantAsset } from '../../services/storage/r2Storage';
+import { useToast } from '../../context/ToastContext';
+import { formatCurrencyInput, parseCurrencyInput } from '../../utils/currency';
 
 interface DishEditorModalProps {
   dish?: Dish | null; // null si es un plato nuevo
@@ -33,11 +35,12 @@ export const DishEditorModal: React.FC<DishEditorModalProps> = ({
   onClose
 }) => {
   const isEditing = Boolean(dish);
+  const toast = useToast();
 
   const [name, setName] = useState(dish?.name || '');
   const [categoryId, setCategoryId] = useState(dish?.categoryId || categories[0]?.id || '');
   const [description, setDescription] = useState(dish?.description || '');
-  const [price, setPrice] = useState<string>(dish ? dish.price.toString() : '');
+  const [price, setPrice] = useState<string>(dish ? formatCurrencyInput(dish.price) : '');
   const [imageUrl, setImageUrl] = useState(dish?.imageUrl || CURATED_IMAGES[0].url);
   const [isFeatured, setIsFeatured] = useState(dish?.isFeatured || false);
   const [isBestSeller, setIsBestSeller] = useState(dish?.isBestSeller || false);
@@ -52,8 +55,10 @@ export const DishEditorModal: React.FC<DishEditorModalProps> = ({
       try {
         const res = await uploadTenantAsset(file, restaurantSlug, 'dishes');
         setImageUrl(res.url);
-      } catch {
-        console.error('Error al subir imagen del plato');
+        toast.success('¡Imagen del plato cargada a Cloudflare R2 con éxito!', 'Multimedia');
+      } catch (err: any) {
+        console.error('Error al subir imagen del plato:', err);
+        toast.error('No se pudo subir la imagen a Cloudflare R2', 'Error de Carga');
       } finally {
         setIsUploading(false);
       }
@@ -64,7 +69,7 @@ export const DishEditorModal: React.FC<DishEditorModalProps> = ({
     e.preventDefault();
     if (!name.trim() || !price) return;
 
-    const priceNum = parseFloat(price.replace(/[^\d.]/g, '')) || 0;
+    const priceNum = parseCurrencyInput(price);
 
     const item: Dish = {
       id: dish ? dish.id : `dish-${Date.now()}`,
@@ -80,6 +85,10 @@ export const DishEditorModal: React.FC<DishEditorModalProps> = ({
     };
 
     onSave(item);
+    toast.success(
+      isEditing ? `¡Plato "${item.name}" actualizado!` : `¡Nuevo plato "${item.name}" creado!`,
+      'Catálogo de Menú'
+    );
   };
 
   return (
@@ -177,7 +186,7 @@ export const DishEditorModal: React.FC<DishEditorModalProps> = ({
                 >
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.icon} {c.name}
+                      {c.name}
                     </option>
                   ))}
                 </select>
@@ -188,10 +197,10 @@ export const DishEditorModal: React.FC<DishEditorModalProps> = ({
             <div className="form-group">
               <label className="form-label">Precio ({currencySymbol}) *</label>
               <input
-                type="number"
+                type="text"
                 value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder="25000"
+                onChange={(e) => setPrice(formatCurrencyInput(e.target.value))}
+                placeholder="25.000"
                 className="form-input"
                 required
               />
@@ -208,53 +217,88 @@ export const DishEditorModal: React.FC<DishEditorModalProps> = ({
               />
             </div>
 
-            {/* Opciones y Badges (Destacado, Más vendido, Disponible) */}
-            <div style={{ background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', padding: '1rem', border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.2rem' }}>
-                Opciones Especiales del Plato
+            {/* Etiquetas (3 Cards en 1 sola fila) */}
+            <div className="form-group">
+              <label className="form-label" style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.6rem' }}>
+                Etiquetas
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.65rem' }}>
+                {/* Card 1: Recomendado (isFeatured) */}
+                <div
+                  onClick={() => setIsFeatured(!isFeatured)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    padding: '0.65rem 0.5rem',
+                    borderRadius: 'var(--radius-md)',
+                    background: isFeatured ? 'var(--featured-gold, #f59e0b)' : 'rgba(245, 158, 11, 0.1)',
+                    border: isFeatured ? '1.5px solid var(--featured-gold, #f59e0b)' : '1px solid rgba(245, 158, 11, 0.25)',
+                    color: isFeatured ? '#ffffff' : '#f59e0b',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    fontSize: '0.82rem',
+                    transition: 'all 0.2s ease',
+                    userSelect: 'none'
+                  }}
+                >
+                  <Star size={16} strokeWidth={2.2} color={isFeatured ? '#ffffff' : '#f59e0b'} fill="none" />
+                  <span>Recomendado</span>
+                </div>
+
+                {/* Card 2: + Vendido (isBestSeller) */}
+                <div
+                  onClick={() => setIsBestSeller(!isBestSeller)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    padding: '0.65rem 0.5rem',
+                    borderRadius: 'var(--radius-md)',
+                    background: isBestSeller ? '#ff5722' : 'rgba(255, 87, 34, 0.1)',
+                    border: isBestSeller ? '1.5px solid #ff5722' : '1px solid rgba(255, 87, 34, 0.25)',
+                    color: isBestSeller ? '#ffffff' : '#ff5722',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    fontSize: '0.82rem',
+                    transition: 'all 0.2s ease',
+                    userSelect: 'none'
+                  }}
+                >
+                  <Flame size={16} strokeWidth={2.2} color={isBestSeller ? '#ffffff' : '#ff5722'} fill="none" />
+                  <span>+ Vendido</span>
+                </div>
+
+                {/* Card 3: Disponible / Agotado (isAvailable - mutable) */}
+                <div
+                  onClick={() => setIsAvailable(!isAvailable)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    padding: '0.65rem 0.5rem',
+                    borderRadius: 'var(--radius-md)',
+                    background: isAvailable ? '#07bc0c' : 'rgba(231, 76, 60, 0.12)',
+                    border: isAvailable ? '1.5px solid #07bc0c' : '1px solid rgba(231, 76, 60, 0.3)',
+                    color: isAvailable ? '#ffffff' : '#e74c3c',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    fontSize: '0.82rem',
+                    transition: 'all 0.2s ease',
+                    userSelect: 'none'
+                  }}
+                >
+                  {isAvailable ? (
+                    <Eye size={16} strokeWidth={2.2} color="#ffffff" fill="none" />
+                  ) : (
+                    <EyeOff size={16} strokeWidth={2.2} color="#e74c3c" fill="none" />
+                  )}
+                  <span>{isAvailable ? 'Disponible' : 'Agotado'}</span>
+                </div>
               </div>
-
-              {/* Destacar */}
-              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.88rem' }}>
-                  <Star size={16} color="var(--featured-gold)" fill={isFeatured ? 'var(--featured-gold)' : 'none'} />
-                  <strong>Destacar en el menú</strong> (Aparece arriba en 'Destacados del Chef')
-                </span>
-                <input
-                  type="checkbox"
-                  checked={isFeatured}
-                  onChange={(e) => setIsFeatured(e.target.checked)}
-                  style={{ accentColor: 'var(--featured-gold)', width: '18px', height: '18px' }}
-                />
-              </label>
-
-              {/* Más Vendido */}
-              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.88rem' }}>
-                  <Flame size={16} color="#f87171" />
-                  <strong>Marcar como Más Vendido</strong>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={isBestSeller}
-                  onChange={(e) => setIsBestSeller(e.target.checked)}
-                  style={{ accentColor: '#f87171', width: '18px', height: '18px' }}
-                />
-              </label>
-
-              {/* Disponible / Agotado */}
-              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.88rem' }}>
-                  {isAvailable ? <Eye size={16} color="var(--success)" /> : <EyeOff size={16} color="var(--danger)" />}
-                  <strong>Estado: {isAvailable ? 'Disponible' : 'Agotado (Bloquear pedidos)'}</strong>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={isAvailable}
-                  onChange={(e) => setIsAvailable(e.target.checked)}
-                  style={{ accentColor: 'var(--success)', width: '18px', height: '18px' }}
-                />
-              </label>
             </div>
           </div>
 

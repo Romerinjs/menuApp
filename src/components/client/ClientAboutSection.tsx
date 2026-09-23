@@ -21,11 +21,9 @@ export const ClientAboutSection: React.FC<ClientAboutSectionProps> = ({ restaura
   if (!restaurant.story && !restaurant.tagline && !restaurant.shortDescription) return null;
 
   const totalDishes = restaurant.dishes?.length || 0;
-  const mainImage =
-    restaurant.coverUrl ||
-    restaurant.dishes?.[0]?.imageUrl ||
-    restaurant.logoUrl ||
-    'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=700&q=80';
+  // Imagen promocional independiente del slide (no depende del logo ni del cover/fondo)
+  const defaultPromoImage = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=700&q=80';
+  const mainImage = restaurant.promotionalImageUrl || defaultPromoImage;
 
   // Dividir historia en párrafos
   const storyParagraphs = restaurant.story

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, Star, Flame, Eye, EyeOff, Search, Utensils } from 'lucide-react';
+import { Plus, Edit2, Trash2, Star, Flame, Eye, EyeOff, Search, Utensils, Tag } from 'lucide-react';
 import { Dish, Category } from '../../types/restaurant';
 import { formatCurrency } from '../../services/whatsapp';
 import { ConfirmModal } from '../common/ConfirmModal';
+import { useToast } from '../../context/ToastContext';
 
 interface DishManagerProps {
   dishes: Dish[];
@@ -13,6 +14,7 @@ interface DishManagerProps {
   onNewDish: () => void;
   onDeleteDish: (dishId: string) => void;
   onToggleAvailability: (dishId: string) => void;
+  onOpenCategoriesModal?: () => void;
 }
 
 export const DishManager: React.FC<DishManagerProps> = ({
@@ -23,10 +25,12 @@ export const DishManager: React.FC<DishManagerProps> = ({
   onEditDish,
   onNewDish,
   onDeleteDish,
-  onToggleAvailability
+  onToggleAvailability,
+  onOpenCategoriesModal
 }) => {
   const [search, setSearch] = useState('');
   const [dishToDelete, setDishToDelete] = useState<Dish | null>(null);
+  const toast = useToast();
 
   // Filtrar por categoría y búsqueda
   const filteredDishes = dishes.filter((dish) => {
@@ -56,9 +60,22 @@ export const DishManager: React.FC<DishManagerProps> = ({
           </div>
         </div>
 
-        <button type="button" onClick={onNewDish} className="btn btn-primary btn-sm">
-          <Plus size={15} /> Añadir Plato
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {onOpenCategoriesModal && (
+            <button
+              type="button"
+              onClick={onOpenCategoriesModal}
+              className="btn btn-secondary btn-sm"
+              style={{ gap: '0.4rem' }}
+            >
+              <Tag size={15} color="var(--primary)" /> Categorías
+            </button>
+          )}
+
+          <button type="button" onClick={onNewDish} className="btn btn-primary btn-sm">
+            <Plus size={15} /> Añadir Plato
+          </button>
+        </div>
       </div>
 
       {filteredDishes.length === 0 ? (
@@ -114,7 +131,15 @@ export const DishManager: React.FC<DishManagerProps> = ({
                   <div className="admin-dish-footer">
                     <button
                       type="button"
-                      onClick={() => onToggleAvailability(dish.id)}
+                      onClick={() => {
+                        onToggleAvailability(dish.id);
+                        const nextState = !dish.isAvailable;
+                        if (nextState) {
+                          toast.success(`Plato "${dish.name}" disponible en el menú`, 'Estado del Plato');
+                        } else {
+                          toast.warning(`Plato "${dish.name}" marcado como Agotado`, 'Estado del Plato');
+                        }
+                      }}
                       className={`btn btn-sm ${dish.isAvailable ? 'btn-secondary' : 'btn-secondary'}`}
                       style={{
                         fontSize: '0.75rem',
@@ -170,6 +195,7 @@ export const DishManager: React.FC<DishManagerProps> = ({
         onConfirm={() => {
           if (dishToDelete) {
             onDeleteDish(dishToDelete.id);
+            toast.info(`Plato "${dishToDelete.name}" eliminado del menú`, 'Catálogo de Menú');
             setDishToDelete(null);
           }
         }}

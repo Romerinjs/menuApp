@@ -257,11 +257,13 @@ export const ClientMenuView: React.FC<ClientMenuViewProps> = ({
       {/* Barra flotante inferior de Carrito cuando hay productos seleccionados */}
       {itemsCount > 0 && !isCartOpen && !isPreview && (
         <div
-          className={`floating-cart-bar ${isCartBumping ? 'cart-pop-animation' : ''}`}
+          className="floating-cart-bar"
           onClick={() => setIsCartOpen(true)}
         >
           <div className="floating-cart-info">
-            <div className="cart-count-bubble">{itemsCount}</div>
+            <div className={`cart-count-bubble ${isCartBumping ? 'cart-pop-animation' : ''}`}>
+              {itemsCount}
+            </div>
             <span style={{ fontWeight: 600 }}>Ver Mi Pedido</span>
           </div>
 

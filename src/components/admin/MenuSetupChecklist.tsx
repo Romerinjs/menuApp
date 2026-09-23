@@ -90,6 +90,9 @@ export const MenuSetupChecklist: React.FC<MenuSetupChecklistProps> = ({
     }
   ];
 
+  // Solo mostrar los pasos que hacen falta (done === false) y ocultar los completados
+  const pendingChecklistItems = checklistItems.filter((item) => !item.done);
+
   const completedCount = checklistItems.filter((item) => item.done).length;
   const progressPercent = Math.round((completedCount / checklistItems.length) * 100);
 
@@ -172,45 +175,29 @@ export const MenuSetupChecklist: React.FC<MenuSetupChecklistProps> = ({
 
       {/* Lista de ítems del checklist */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.75rem' }}>
-        {checklistItems.map((item) => {
-          const Icon = item.icon;
+        {pendingChecklistItems.map((item) => {
           return (
             <div
               key={item.id}
               onClick={item.action}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.75rem 0.9rem',
-                borderRadius: 'var(--radius-md)',
-                background: item.highlight
-                  ? 'rgba(255, 87, 34, 0.08)'
-                  : 'var(--bg-surface-elevated)',
-                border: item.highlight
-                  ? '1px solid rgba(255, 87, 34, 0.3)'
-                  : '1px solid var(--border-subtle)',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
+              className={`setup-checklist-item ${item.highlight ? 'highlight' : ''}`}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                <div style={{ color: item.done ? 'var(--success)' : item.highlight ? 'var(--primary)' : 'var(--text-muted)' }}>
+                <div className="checklist-item-icon" style={{ color: item.done ? 'var(--success)' : item.highlight ? 'var(--primary)' : 'var(--text-muted)' }}>
                   {item.done ? <CheckCircle2 size={18} /> : <Circle size={18} />}
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: item.done ? 'var(--text-primary)' : 'var(--text-primary)', textDecoration: item.done ? 'none' : 'none' }}>
+                  <div className="checklist-item-title" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                     {item.title}
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  <div className="checklist-item-subtitle" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                     {item.subtitle}
                   </div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.78rem', fontWeight: 600, color: 'var(--primary)' }}>
-                <span>{item.actionLabel}</span>
-                <ChevronRight size={13} />
+              <div style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>
+                <ChevronRight size={16} className="arrow-icon" />
               </div>
             </div>
           );
