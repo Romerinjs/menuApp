@@ -25,8 +25,10 @@ export interface Dish {
 }
 
 export interface DeliveryModalities {
-  delivery: boolean; // 🛵 Domicilio
-  pickup: boolean;   // 🥡 Retiro en local
+  delivery: boolean;             // 🛵 Domicilio
+  pickup: boolean;               // 🥡 Retiro en local
+  deliveryFeeEnabled?: boolean;  // 🛵 Switch activar/desactivar tarifa fija por domicilio
+  deliveryFee?: number;          // 🛵 Precio estándar editable para domicilio
 }
 
 // Métodos de Pago
@@ -88,6 +90,7 @@ export interface Restaurant {
   themeColor: string;
   logoUrl?: string;
   coverUrl?: string;
+  promotionalImageUrl?: string; // Imagen destacada/promocional para el slide del menú
   
   // WhatsApp & Contacto principal
   whatsappCountryCode: string; // ej: "+57", "+52"

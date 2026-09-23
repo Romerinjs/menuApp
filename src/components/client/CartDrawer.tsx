@@ -106,8 +106,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </span>
               </div>
 
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '1rem' }}>
-                Cobro en físico en caja o contra entrega con el domiciliario.
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '1rem', lineHeight: 1.4 }}>
+                {restaurant.modalities?.delivery && restaurant.modalities?.deliveryFeeEnabled && (restaurant.modalities?.deliveryFee || 0) > 0 ? (
+                  <span>
+                    Tarifa de domicilio fija: {formatCurrency(restaurant.modalities.deliveryFee || 0, restaurant.currencySymbol)} (se aplica al elegir Domicilio).
+                  </span>
+                ) : (
+                  <span>Cobro en físico en caja o contra entrega con el domiciliario.</span>
+                )}
               </div>
 
               <button

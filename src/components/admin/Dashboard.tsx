@@ -26,7 +26,7 @@ import {
 import { Restaurant, Dish } from '../../types/restaurant';
 import { useTenant } from '../../context/TenantContext';
 import { OnboardingWizard } from './OnboardingWizard';
-import { CategoryManager } from './CategoryManager';
+import { CategoryManagerModal } from './CategoryManagerModal';
 import { DishManager } from './DishManager';
 import { DishEditorModal } from './DishEditorModal';
 import { QRCodeCard } from './QRCodeCard';
@@ -65,6 +65,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToClient }) => {
 
   // Estados de modales y filtros
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
   const [editingDish, setEditingDish] = useState<Dish | null | undefined>(undefined); // undefined = cerrado, null = nuevo
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTabType>('general');
@@ -324,7 +325,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToClient }) => {
                   <div className="stat-card-header">
                     <span className="stat-card-title">PLATOS EN CARTA</span>
                     <div className="stat-card-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>
-                      <UtensilsCrossed size={18} />
+                      <UtensilsCrossed size={14} />
                     </div>
                   </div>
                   <div className="stat-card-value" style={{ color: 'var(--primary)' }}>
@@ -340,9 +341,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToClient }) => {
                   title="Ver platos destacados"
                 >
                   <div className="stat-card-header">
-                    <span className="stat-card-title">DESTACADOS DEL CHEF</span>
+                    <span className="stat-card-title">DESTACADOS</span>
                     <div className="stat-card-icon" style={{ background: 'rgba(251, 191, 36, 0.15)', color: 'var(--featured-gold)' }}>
-                      <Star size={18} fill="currentColor" />
+                      <Star size={14} fill="currentColor" />
                     </div>
                   </div>
                   <div className="stat-card-value" style={{ color: 'var(--featured-gold)' }}>
@@ -360,7 +361,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToClient }) => {
                   <div className="stat-card-header">
                     <span className="stat-card-title">MÁS VENDIDOS</span>
                     <div className="stat-card-icon" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}>
-                      <Flame size={18} />
+                      <Flame size={14} />
                     </div>
                   </div>
                   <div className="stat-card-value" style={{ color: '#ef4444' }}>
@@ -378,7 +379,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToClient }) => {
                   <div className="stat-card-header">
                     <span className="stat-card-title">DISPONIBILIDAD</span>
                     <div className="stat-card-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--success)' }}>
-                      <CheckCircle2 size={18} />
+                      <CheckCircle2 size={14} />
                     </div>
                   </div>
                   <div className="stat-card-value" style={{ color: 'var(--success)' }}>
@@ -397,8 +398,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToClient }) => {
                   <div className="dashboard-card" style={{ marginBottom: '1.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Star size={18} color="var(--featured-gold)" fill="currentColor" />
-                        <h3 style={{ fontSize: '1.1rem', margin: 0 }}>Platos Destacados del Chef ({featuredDishes.length})</h3>
+                        <h3 style={{ fontSize: '1.1rem', margin: 0 }}>Platos Destacados ({featuredDishes.length})</h3>
                       </div>
                       <button
                         type="button"
@@ -537,24 +537,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToClient }) => {
                 onNewDish={() => setEditingDish(null)}
                 onDeleteDish={(id) => deleteDish(id)}
                 onToggleAvailability={(id) => toggleDishAvailability(id)}
+                onOpenCategoriesModal={() => setIsCategoriesModalOpen(true)}
               />
             </div>
           )}
 
-          {/* MÓDULO 3: CATEGORÍAS */}
-          {activeModule === 'categories' && (
-            <div style={{ maxWidth: '850px' }}>
-              <CategoryManager
-                categories={currentRestaurant.categories}
-                selectedCategoryId={selectedCategoryId}
-                onSelectCategory={setSelectedCategoryId}
-                onAddCategory={(cat) => saveCategory(cat)}
-                onDeleteCategory={(id) => deleteCategory(id)}
-              />
-            </div>
-          )}
-
-          {/* MÓDULO 4: CÓDIGOS QR & MESAS */}
+          {/* MÓDULO: CÓDIGOS QR & MESAS */}
           {activeModule === 'qr' && (
             <div style={{ maxWidth: '650px', margin: '0 auto' }}>
               <QRCodeCard
@@ -565,6 +553,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToClient }) => {
           )}
         </main>
       </div>
+
+      {/* Modal Sobrepuesto para Gestión de Categorías */}
+      {isCategoriesModalOpen && (
+        <CategoryManagerModal
+          categories={currentRestaurant.categories}
+          selectedCategoryId={selectedCategoryId}
+          onSelectCategory={setSelectedCategoryId}
+          onAddCategory={(cat) => saveCategory(cat)}
+          onDeleteCategory={(id) => deleteCategory(id)}
+          onClose={() => setIsCategoriesModalOpen(false)}
+        />
+      )}
 
       {/* Modal para Crear / Editar Platos */}
       {editingDish !== undefined && (

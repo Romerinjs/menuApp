@@ -133,7 +133,9 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       currencyCode: 'COP',
       modalities: {
         delivery: true,
-        pickup: true
+        pickup: true,
+        deliveryFeeEnabled: false,
+        deliveryFee: 0
       },
       onboardingCompleted: false, // Inicia bloqueado hasta completar onboarding
       categories: [],

@@ -22,7 +22,9 @@ const DEFAULT_PRESET_RESTAURANTS: Restaurant[] = [
     currencyCode: 'COP',
     modalities: {
       delivery: true,
-      pickup: true
+      pickup: true,
+      deliveryFeeEnabled: false,
+      deliveryFee: 5000
     },
     tagline: 'Sabores Auténticos & Ingredientes 100% Seleccionados',
     story: 'En La Parrilla Urbana preparamos hamburguesas artesanales y cortes seleccionados con carne 100% Angus. Nuestra pasión es combinar técnicas tradicionales de ahumado a la parrilla con insumos frescos de origen local para entregarte una experiencia gastronómica inolvidable en cada bocado.',

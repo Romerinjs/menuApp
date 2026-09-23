@@ -1197,12 +1197,18 @@
 
 .stat-cards-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-  margin-bottom: 1.75rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
 }
 
-@media (max-width: 580px) {
+@media (max-width: 900px) {
+  .stat-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
   .stat-cards-grid {
     grid-template-columns: 1fr;
   }
@@ -1212,10 +1218,10 @@
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: 1rem 1.25rem;
+  padding: 0.7rem 0.9rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.3rem;
   transition: all var(--transition-fast);
   box-shadow: var(--shadow-sm);
 }
@@ -1230,31 +1236,37 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.35rem;
 }
 
 .stat-card-title {
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.68rem;
+  font-weight: 700;
   color: var(--text-muted);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stat-card-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-md);
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .stat-card-value {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 800;
   line-height: 1;
 }
 
 .stat-card-desc {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--text-secondary);
 }
 
@@ -1355,4 +1367,318 @@
     justify-content: center;
   }
 }
+
+/* Animación Slide-Reveal al cambiar de pestaña */
+@keyframes tabSlideReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+    filter: blur(3px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.tab-slide-reveal {
+  animation: tabSlideReveal 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity, filter;
+}
+
+/* Animación Hover Reveal & Sliding Pill 0.4s para Pestañas de Ajustes */
+.settings-tabs-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface-elevated);
+  padding: 0.6rem 0.8rem;
+  gap: 0.4rem;
+  overflow-x: auto;
+}
+
+/* Indicador redondeado deslizante animado (Pill) */
+.tab-active-pill-indicator {
+  position: absolute;
+  background: var(--primary);
+  border-radius: 9999px;
+  box-shadow: 0 4px 14px rgba(255, 87, 34, 0.38);
+  pointer-events: none;
+  z-index: 1;
+  transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+              top 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+              width 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+              height 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.2s ease;
+}
+
+.settings-tab-btn {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.6rem 0.5rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.3s ease, background-color 0.3s ease;
+}
+
+.settings-tab-btn:hover {
+  background: rgba(255, 87, 34, 0.08);
+}
+
+.settings-tab-btn.active {
+  color: #ffffff !important;
+  background: transparent !important;
+}
+
+.settings-tab-btn.active svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+.tab-label-reveal {
+  display: block;
+  max-height: 0px;
+  max-width: none;
+  opacity: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  line-height: 1.2;
+  transition: max-height 0.7s cubic-bezier(0.25, 1, 0.5, 1),
+              opacity 0.5s ease 0.1s;
+}
+
+/* La pestaña activa muestra su nombre de forma fija */
+.settings-tab-btn.active .tab-label-reveal {
+  max-height: 40px !important;
+  opacity: 1 !important;
+}
+
+/* Al pasar el mouse sobre cualquier otra pestaña, se despliega su propio nombre on hover */
+/* Checklist Item Hover Fill Animation (Right to Left) */
+.setup-checklist-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  overflow: hidden;
+  z-index: 1;
+  transition: border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.setup-checklist-item.highlight {
+  background: rgba(255, 87, 34, 0.06);
+  border-color: rgba(255, 87, 34, 0.3);
+}
+
+.setup-checklist-item::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 0%;
+  background: linear-gradient(270deg, #ff5722 0%, #f4511e 100%);
+  z-index: -1;
+  transition: width 0.38s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: inherit;
+}
+
+.setup-checklist-item:hover::before {
+  width: 100%;
+  left: 0;
+  right: auto;
+}
+
+.setup-checklist-item:hover {
+  border-color: #ff5722;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 87, 34, 0.35);
+  color: #ffffff !important;
+}
+
+.setup-checklist-item .checklist-item-title,
+.setup-checklist-item .checklist-item-subtitle,
+.setup-checklist-item .checklist-item-icon {
+  transition: color var(--transition-fast);
+}
+
+.setup-checklist-item:hover .checklist-item-title {
+  color: #ffffff !important;
+}
+
+.setup-checklist-item:hover .checklist-item-subtitle {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.setup-checklist-item:hover .checklist-item-icon {
+  color: #ffffff !important;
+}
+
+.setup-checklist-item .arrow-icon {
+  transition: transform var(--transition-fast), color var(--transition-fast);
+}
+
+.setup-checklist-item:hover .arrow-icon {
+  transform: translateX(4px);
+  color: #ffffff !important;
+}
+
+/* ========================================================
+   ESTILOS COLLAPSED SIDEBAR Y TOOLTIP EN CURVA 🎛️
+   ======================================================== */
+.admin-sidebar {
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform var(--transition-normal);
+}
+
+.admin-sidebar.collapsed {
+  width: 76px;
+  overflow: visible !important;
+}
+
+.admin-sidebar.collapsed .admin-sidebar-nav {
+  padding: 1.25rem 0.4rem;
+  overflow: visible !important;
+}
+
+.admin-sidebar.collapsed .admin-sidebar-header {
+  padding: 1rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.admin-sidebar.collapsed .admin-sidebar-footer {
+  padding: 0.85rem 0.4rem;
+}
+
+/* Botón flotante para alternar collapse (colapso) */
+.sidebar-toggle-btn {
+  position: absolute;
+  top: 22px;
+  right: -13px;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-glass);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 105;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all var(--transition-fast);
+}
+
+.sidebar-toggle-btn:hover {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+  transform: scale(1.1);
+}
+
+/* Wrapper del ítem del nav en sidebar */
+.sidebar-nav-item-wrapper {
+  position: relative;
+}
+
+.sidebar-nav-item-wrapper:hover {
+  z-index: 150;
+}
+
+.sidebar-nav-btn-content {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: left;
+  gap: 0.65rem;
+  width: 100%;
+}
+
+.admin-sidebar.collapsed .sidebar-nav-btn-content {
+  justify-content: center;
+  text-align: center;
+}
+
+.admin-sidebar.collapsed .sidebar-nav-btn {
+  justify-content: center;
+  padding: 0.8rem 0;
+  border-radius: var(--radius-md);
+}
+
+/* Tooltip curvo que rompe la línea del borde del sidebar al estar colapsado */
+.sidebar-collapsed-tooltip {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%) translateX(-8px);
+  margin-left: 2px;
+  background: var(--bg-surface-elevated);
+  color: var(--text-primary);
+  border: 1.5px solid var(--primary);
+  padding: 0.55rem 1rem 0.55rem 0.85rem;
+  border-top-right-radius: 20px;
+  border-bottom-right-radius: 20px;
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 8px 6px 24px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), visibility 0.2s ease;
+  z-index: 999;
+}
+
+.sidebar-collapsed-tooltip::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+  width: 10px;
+  height: 10px;
+  background: var(--bg-surface-elevated);
+  border-left: 1.5px solid var(--primary);
+  border-bottom: 1.5px solid var(--primary);
+}
+
+.sidebar-nav-item-wrapper:hover .sidebar-collapsed-tooltip {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(-50%) translateX(0);
+}
+
+.sidebar-collapsed-tooltip .tooltip-icon {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
 

@@ -52,7 +52,7 @@ export const ClientFooter: React.FC<ClientFooterProps> = ({
   return (
     <footer className="client-footer reveal-on-scroll">
       <div className="client-footer-inner">
-        {/* Columna 1: Marca, Descripción & Redes Sociales */}
+        {/* Columna 1: Marca, Eslogan & Redes Sociales */}
         <div className="footer-col brand-col">
           <div className="footer-brand-header">
             {restaurant.logoUrl ? (
@@ -66,9 +66,11 @@ export const ClientFooter: React.FC<ClientFooterProps> = ({
           </div>
 
           <p className="footer-brand-desc">
-            {restaurant.story
-              ? restaurant.story.substring(0, 160) + '...'
-              : `${restaurant.name}: Preparaciones artesanales elaboradas con la máxima frescura y calidad.`}
+            {restaurant.tagline
+              ? restaurant.tagline
+              : restaurant.story
+                ? restaurant.story.substring(0, 160) + '...'
+                : `${restaurant.name}: Preparaciones artesanales elaboradas con la máxima frescura y calidad.`}
           </p>
 
           <div className="footer-social-row">
@@ -204,26 +206,9 @@ export const ClientFooter: React.FC<ClientFooterProps> = ({
                 Inicio
               </button>
             </li>
-            <li>
-              <span className="footer-link-text">
-                Menú Completo ({restaurant.dishes.length} Productos)
-              </span>
-            </li>
-            <li>
-              <span className="footer-link-text">
-                {restaurant.modalities?.delivery ? 'Cobertura de Domicilios Activa' : 'Retiro en Local'}
-              </span>
-            </li>
             {restaurant.openingHours && (
               <li>
                 <span className="footer-link-text">Horarios: {restaurant.openingHours}</span>
-              </li>
-            )}
-            {onOpenCart && (
-              <li>
-                <button type="button" onClick={onOpenCart} className="footer-link-btn flex-link">
-                  <ShoppingBasket size={13} /> Mi Carrito de Pedido
-                </button>
               </li>
             )}
             <li>
@@ -297,6 +282,15 @@ export const ClientFooter: React.FC<ClientFooterProps> = ({
                 <div>
                   <strong>Atención:</strong>
                   <span>{restaurant.openingHours}</span>
+                </div>
+              </li>
+            )}
+
+            {restaurant.modalities?.delivery && (
+              <li>
+                <Bike size={16} color="var(--primary)" className="contact-icon" />
+                <div>
+                  <strong>Domicilio Activo</strong>
                 </div>
               </li>
             )}

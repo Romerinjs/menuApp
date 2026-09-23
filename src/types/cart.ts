@@ -18,6 +18,8 @@ export interface OrderCheckoutData {
   generalNotes?: string;
   selectedPaymentMethod?: string;
   paymentVoucherUrl?: string;
+  deliveryFee?: number;
+  total?: number;
 }
 
 export interface CartTotals {

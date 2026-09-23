@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import {
   X,
   Store,
@@ -22,7 +22,8 @@ import {
   ExternalLink,
   Image as ImageIcon,
   Globe,
-  Loader2
+  Loader2,
+  Clock
 } from 'lucide-react';
 import {
   Restaurant,
@@ -42,8 +43,10 @@ import { PRESET_PALETTES, generateHarmoniousPalette } from '../../services/color
 import { OpeningHoursPicker } from '../common/OpeningHoursPicker';
 import { CompactSocialLinksPicker } from './CompactSocialLinksPicker';
 import { CountryCodeSelect } from '../common/CountryCodeSelect';
+import { useToast } from '../../context/ToastContext';
+import { formatCurrencyInput, parseCurrencyInput } from '../../utils/currency';
 
-export type SettingsTabType = 'general' | 'service' | 'location' | 'payments' | 'channels';
+export type SettingsTabType = 'general' | 'service' | 'location' | 'payments' | 'channels' | 'hours';
 
 interface RestaurantSettingsModalProps {
   restaurant: Restaurant;
@@ -81,6 +84,42 @@ export const RestaurantSettingsModal: React.FC<RestaurantSettingsModalProps> = (
   onClose
 }) => {
   const [activeTab, setActiveTab] = useState<SettingsTabType>(initialTab);
+  const toast = useToast();
+
+  const navBarRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<{ [key in SettingsTabType]?: HTMLButtonElement | null }>({});
+  const [activePillStyle, setActivePillStyle] = useState<React.CSSProperties>({
+    opacity: 0
+  });
+
+  const updateTabIndicator = () => {
+    const navBar = navBarRef.current;
+    const currentBtn = tabRefs.current[activeTab];
+    if (navBar && currentBtn) {
+      const navRect = navBar.getBoundingClientRect();
+      const btnRect = currentBtn.getBoundingClientRect();
+      setActivePillStyle({
+        left: `${btnRect.left - navRect.left}px`,
+        top: `${btnRect.top - navRect.top}px`,
+        width: `${btnRect.width}px`,
+        height: `${btnRect.height}px`,
+        opacity: 1
+      });
+    }
+  };
+
+  useLayoutEffect(() => {
+    updateTabIndicator();
+  }, [activeTab]);
+
+  useEffect(() => {
+    window.addEventListener('resize', updateTabIndicator);
+    const timer = setTimeout(updateTabIndicator, 300);
+    return () => {
+      window.removeEventListener('resize', updateTabIndicator);
+      clearTimeout(timer);
+    };
+  }, [activeTab]);
 
   // Form states - General
   const [name, setName] = useState(restaurant.name);
@@ -122,6 +161,7 @@ export const RestaurantSettingsModal: React.FC<RestaurantSettingsModalProps> = (
 
   const [logoUrl, setLogoUrl] = useState(restaurant.logoUrl || '');
   const [coverUrl, setCoverUrl] = useState(restaurant.coverUrl || '');
+  const [promotionalImageUrl, setPromotionalImageUrl] = useState(restaurant.promotionalImageUrl || '');
   const [tagline, setTagline] = useState(restaurant.tagline || '');
   const [shortDescription, setShortDescription] = useState(restaurant.shortDescription || '');
   const [story, setStory] = useState(restaurant.story || '');
@@ -133,7 +173,7 @@ export const RestaurantSettingsModal: React.FC<RestaurantSettingsModalProps> = (
   const [currencySymbol, setCurrencySymbol] = useState(restaurant.currencySymbol || '$');
   const [openingHours, setOpeningHours] = useState(restaurant.openingHours || '');
   const [modalities, setModalities] = useState<DeliveryModalities>(
-    restaurant.modalities || { delivery: true, pickup: true }
+    restaurant.modalities || { delivery: true, pickup: true, deliveryFeeEnabled: false, deliveryFee: 0 }
   );
 
   // Teléfonos múltiples con etiquetas
@@ -205,7 +245,7 @@ export const RestaurantSettingsModal: React.FC<RestaurantSettingsModalProps> = (
   // Manejo de carga de imágenes a R2 / Local
   const handleFileUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
-    folder: 'logos' | 'covers' | 'qrs',
+    folder: 'logos' | 'covers' | 'qrs' | 'promo',
     setter: (val: string) => void
   ) => {
     const file = e.target.files?.[0];
@@ -215,8 +255,18 @@ export const RestaurantSettingsModal: React.FC<RestaurantSettingsModalProps> = (
     try {
       const result = await uploadTenantAsset(file, slug || restaurant.slug, folder);
       setter(result.url);
+      const label =
+        folder === 'logos'
+          ? 'Logotipo'
+          : folder === 'covers'
+          ? 'Imagen de Portada'
+          : folder === 'promo'
+          ? 'Imagen Promocional (Slide)'
+          : 'Código QR';
+      toast.success(`¡${label} subido a Cloudflare R2 con éxito!`, 'Multimedia Actualizada');
     } catch {
       setErrorMessage('Error al subir imagen. Intenta con otro archivo.');
+      toast.error('No se pudo subir la imagen a Cloudflare R2', 'Error de Carga');
     } finally {
       setIsUploading(false);
     }
@@ -227,6 +277,7 @@ export const RestaurantSettingsModal: React.FC<RestaurantSettingsModalProps> = (
     const found = CURRENCIES.find((c) => c.code === code);
     if (found) {
       setCurrencySymbol(found.symbol);
+      toast.info(`Moneda del sitio cambiada a ${found.label}`, 'Ajustes Monetarios');
     }
   };
 
@@ -234,6 +285,7 @@ export const RestaurantSettingsModal: React.FC<RestaurantSettingsModalProps> = (
   const handleSelectPalette = (pal: ColorPalette) => {
     setActivePalette(pal);
     setThemeColor(pal.primary);
+    toast.info(`Paleta de colores "${pal.name}" seleccionada`, 'Diseño del Sitio');
   };
 
   // Generación Inline con IA: Feed Description (<= 180 caracteres)
@@ -375,6 +427,7 @@ export const RestaurantSettingsModal: React.FC<RestaurantSettingsModalProps> = (
       palette: activePalette,
       logoUrl: logoUrl.trim() || undefined,
       coverUrl: coverUrl.trim() || undefined,
+      promotionalImageUrl: promotionalImageUrl.trim() || undefined,
       tagline: tagline.trim() || undefined,
       shortDescription: shortDescription.trim() || undefined,
       story: story.trim() || undefined,
@@ -394,6 +447,7 @@ export const RestaurantSettingsModal: React.FC<RestaurantSettingsModalProps> = (
     };
 
     onSave(updated);
+    toast.success('¡Ajustes del negocio guardados con éxito!', 'Configuración Actualizada');
     setSuccessSaved(true);
     setTimeout(() => {
       onClose();
@@ -427,122 +481,74 @@ export const RestaurantSettingsModal: React.FC<RestaurantSettingsModalProps> = (
         </div>
 
         {/* Pestañas de Navegación del Modal */}
-        <div
-          style={{
-            display: 'flex',
-            borderBottom: '1px solid var(--border-subtle)',
-            background: 'var(--bg-surface-elevated)',
-            overflowX: 'auto'
-          }}
-        >
+        <div className="settings-tabs-bar" ref={navBarRef}>
+          {/* Indicador deslizante animado de pestaña activa */}
+          <div className="tab-active-pill-indicator" style={activePillStyle} />
+
           <button
             type="button"
+            ref={(el) => { tabRefs.current['general'] = el; }}
             onClick={() => setActiveTab('general')}
-            style={{
-              flex: 1,
-              minWidth: '110px',
-              padding: '0.8rem 0.6rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.35rem',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              color: activeTab === 'general' ? 'var(--primary)' : 'var(--text-secondary)',
-              borderBottom: activeTab === 'general' ? '2px solid var(--primary)' : '2px solid transparent',
-              background: 'transparent',
-              cursor: 'pointer'
-            }}
+            className={`settings-tab-btn ${activeTab === 'general' ? 'active' : ''}`}
+            title="Marca"
           >
-            <Store size={14} /> Marca & Feed
+            <Store size={15} />
+            <span className="tab-label-reveal">Marca</span>
           </button>
 
           <button
             type="button"
+            ref={(el) => { tabRefs.current['payments'] = el; }}
             onClick={() => setActiveTab('payments')}
-            style={{
-              flex: 1,
-              minWidth: '125px',
-              padding: '0.8rem 0.6rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.35rem',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              color: activeTab === 'payments' ? 'var(--primary)' : 'var(--text-secondary)',
-              borderBottom: activeTab === 'payments' ? '2px solid var(--primary)' : '2px solid transparent',
-              background: 'transparent',
-              cursor: 'pointer'
-            }}
+            className={`settings-tab-btn ${activeTab === 'payments' ? 'active' : ''}`}
+            title="Pagos & Bre-B"
           >
-            <CreditCard size={14} /> Pagos & Bre-B
+            <CreditCard size={15} />
+            <span className="tab-label-reveal">Pagos & Bre-B</span>
           </button>
 
           <button
             type="button"
+            ref={(el) => { tabRefs.current['channels'] = el; }}
             onClick={() => setActiveTab('channels')}
-            style={{
-              flex: 1,
-              minWidth: '120px',
-              padding: '0.8rem 0.6rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.35rem',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              color: activeTab === 'channels' ? 'var(--primary)' : 'var(--text-secondary)',
-              borderBottom: activeTab === 'channels' ? '2px solid var(--primary)' : '2px solid transparent',
-              background: 'transparent',
-              cursor: 'pointer'
-            }}
+            className={`settings-tab-btn ${activeTab === 'channels' ? 'active' : ''}`}
+            title="Contacto"
           >
-            <Share2 size={14} /> Redes & Teléfonos
+            <Phone size={15} />
+            <span className="tab-label-reveal">Contacto</span>
           </button>
 
           <button
             type="button"
+            ref={(el) => { tabRefs.current['service'] = el; }}
             onClick={() => setActiveTab('service')}
-            style={{
-              flex: 1,
-              minWidth: '100px',
-              padding: '0.8rem 0.6rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.35rem',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              color: activeTab === 'service' ? 'var(--primary)' : 'var(--text-secondary)',
-              borderBottom: activeTab === 'service' ? '2px solid var(--primary)' : '2px solid transparent',
-              background: 'transparent',
-              cursor: 'pointer'
-            }}
+            className={`settings-tab-btn ${activeTab === 'service' ? 'active' : ''}`}
+            title="Entregas"
           >
-            <Bike size={14} /> Entregas
+            <Bike size={15} />
+            <span className="tab-label-reveal">Entregas</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab('location')}
-            style={{
-              flex: 1,
-              minWidth: '100px',
-              padding: '0.8rem 0.6rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.35rem',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              color: activeTab === 'location' ? 'var(--primary)' : 'var(--text-secondary)',
-              borderBottom: activeTab === 'location' ? '2px solid var(--primary)' : '2px solid transparent',
-              background: 'transparent',
-              cursor: 'pointer'
-            }}
+            ref={(el) => { tabRefs.current['hours'] = el; }}
+            onClick={() => setActiveTab('hours')}
+            className={`settings-tab-btn ${activeTab === 'hours' ? 'active' : ''}`}
+            title="Horarios"
           >
-            <MapPin size={14} /> Maps
+            <Clock size={15} />
+            <span className="tab-label-reveal">Horarios</span>
+          </button>
+
+          <button
+            type="button"
+            ref={(el) => { tabRefs.current['location'] = el; }}
+            onClick={() => setActiveTab('location')}
+            className={`settings-tab-btn ${activeTab === 'location' ? 'active' : ''}`}
+            title="Ubicación"
+          >
+            <MapPin size={15} />
+            <span className="tab-label-reveal">Ubicación</span>
           </button>
         </div>
 
@@ -567,32 +573,34 @@ export const RestaurantSettingsModal: React.FC<RestaurantSettingsModalProps> = (
               </div>
             )}
 
-            {/* TAB 1: GENERAL & PALETAS */}
-            {activeTab === 'general' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div className="form-group">
-                  <label className="form-label">Nombre del Negocio *</label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Ej. Burger Artisan Club"
-                    className="form-input"
-                    required
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            {/* Contenedor animado Slide-Reveal al cambiar de pestaña */}
+            <div key={activeTab} className="tab-slide-reveal">
+              {/* TAB 1: GENERAL & PALETAS */}
+              {activeTab === 'general' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <div className="form-group">
-                    <label className="form-label">Especialidad / Tipo de Cocina</label>
+                    <label className="form-label">Nombre del Negocio *</label>
                     <input
                       type="text"
-                      value={cuisineType}
-                      onChange={(e) => setCuisineType(e.target.value)}
-                      placeholder="Ej. Hamburguesas & Papas"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Ej. Burger Artisan Club"
                       className="form-input"
+                      required
                     />
                   </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div className="form-group">
+                      <label className="form-label">Especialidad / Tipo de Cocina</label>
+                      <input
+                        type="text"
+                        value={cuisineType}
+                        onChange={(e) => setCuisineType(e.target.value)}
+                        placeholder="Ej. Hamburguesas & Papas"
+                        className="form-input"
+                      />
+                    </div>
 
                   <div className="form-group">
                     <label className="form-label">Slug URL del Menú (/m/)</label>
@@ -922,8 +930,8 @@ export const RestaurantSettingsModal: React.FC<RestaurantSettingsModalProps> = (
                   </div>
                 </div>
 
-                {/* LOGO & PORTADA */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                {/* LOGO, PORTADA & IMAGEN PROMOCIONAL (SLIDE) */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
                   <div className="form-group">
                     <label className="form-label">Logotipo</label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
@@ -967,6 +975,28 @@ export const RestaurantSettingsModal: React.FC<RestaurantSettingsModalProps> = (
                       </label>
                     </div>
                   </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Imagen Promocional (Slide)</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      {promotionalImageUrl && (
+                        <img
+                          src={promotionalImageUrl}
+                          alt="Promo Slide"
+                          style={{ width: '42px', height: '42px', borderRadius: '8px', objectFit: 'cover', border: '1px solid var(--border-subtle)' }}
+                        />
+                      )}
+                      <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', flex: 1, textAlign: 'center' }} title="Subir a Cloudflare R2">
+                        <Upload size={13} /> {isUploading ? 'Subiendo...' : 'Subir Promo'}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={(e) => handleFileUpload(e, 'promo', setPromotionalImageUrl)}
+                        />
+                      </label>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="form-group">
@@ -1006,172 +1036,234 @@ export const RestaurantSettingsModal: React.FC<RestaurantSettingsModalProps> = (
                       Permite a los clientes elegir método de pago (Bre-B, Nequi, Efectivo) y ver tus códigos QR en el checkout.
                     </p>
                   </div>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', gap: '0.5rem' }}>
-                    <input
-                      type="checkbox"
-                      checked={paymentConfig.enabled}
-                      onChange={(e) => handleTogglePlugin(e.target.checked)}
-                      style={{ width: '20px', height: '20px', accentColor: 'var(--primary)', cursor: 'pointer' }}
-                    />
-                    <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>
+                  <div
+                    onClick={() => handleTogglePlugin(!paymentConfig.enabled)}
+                    style={{
+                      display: 'inline-flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      cursor: 'pointer',
+                      userSelect: 'none'
+                    }}
+                  >
+                    <span style={{ fontWeight: 700, fontSize: '0.78rem', color: paymentConfig.enabled ? 'var(--text-primary)' : 'var(--text-muted)' }}>
                       {paymentConfig.enabled ? 'Activado' : 'Desactivado'}
                     </span>
-                  </label>
-                </div>
-
-                {/* Lista de Métodos de Pago */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                  <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>
-                    Métodos Configurados ({paymentConfig.methods.length})
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleAddPaymentMethod}
-                    className="btn btn-secondary btn-sm"
-                    style={{ gap: '0.3rem' }}
-                  >
-                    <Plus size={14} /> Añadir Método
-                  </button>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {paymentConfig.methods.map((method) => (
                     <div
-                      key={method.id}
                       style={{
-                        background: 'var(--bg-surface-elevated)',
-                        border: '1px solid var(--border-subtle)',
-                        borderRadius: 'var(--radius-md)',
-                        padding: '1rem'
+                        width: '44px',
+                        height: '24px',
+                        borderRadius: '12px',
+                        background: paymentConfig.enabled ? 'var(--primary)' : 'var(--border-subtle)',
+                        position: 'relative',
+                        transition: 'background 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        padding: '2px'
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <input
-                            type="checkbox"
-                            checked={method.isActive}
-                            onChange={(e) => handleUpdatePaymentMethod(method.id, 'isActive', e.target.checked)}
-                            style={{ accentColor: 'var(--primary)', cursor: 'pointer' }}
-                            title="Activo / Inactivo"
-                          />
-                          <input
-                            type="text"
-                            value={method.name}
-                            onChange={(e) => handleUpdatePaymentMethod(method.id, 'name', e.target.value)}
-                            placeholder="Nombre del método (ej. Bre-B, Nequi...)"
-                            className="form-input"
-                            style={{ fontWeight: 700, fontSize: '0.9rem', padding: '0.35rem 0.6rem' }}
-                          />
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleRemovePaymentMethod(method.id)}
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'var(--danger)',
-                            cursor: 'pointer',
-                            padding: '0.3rem'
-                          }}
-                          title="Eliminar método"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: '0.75rem', alignItems: 'start' }}>
-                        {/* Tipo de Pago */}
-                        <div>
-                          <label className="form-label" style={{ fontSize: '0.75rem' }}>Tipo</label>
-                          <select
-                            value={method.type}
-                            onChange={(e) => handleUpdatePaymentMethod(method.id, 'type', e.target.value as PaymentType)}
-                            className="form-select"
-                            style={{ fontSize: '0.8rem', padding: '0.45rem' }}
-                          >
-                            <option value="bre-b">Bre-B (QR)</option>
-                            <option value="transfer">Transferencia</option>
-                            <option value="cash">Efectivo</option>
-                            <option value="card">Tarjeta</option>
-                            <option value="other">Otro</option>
-                          </select>
-                        </div>
-
-                        {/* Datos de Cuenta / Clave */}
-                        <div>
-                          <label className="form-label" style={{ fontSize: '0.75rem' }}>Datos de Cuenta / Llave</label>
-                          <input
-                            type="text"
-                            value={method.accountDetails || ''}
-                            onChange={(e) => handleUpdatePaymentMethod(method.id, 'accountDetails', e.target.value)}
-                            placeholder="Ej. Nequi: 3001234567 / Ahorros 123-456"
-                            className="form-input"
-                            style={{ fontSize: '0.82rem', padding: '0.45rem 0.6rem' }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Subida de Imagen de Código QR */}
-                      <div style={{ marginTop: '0.75rem' }}>
-                        <label className="form-label" style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                          <QrCode size={13} color="var(--primary)" /> Imagen de Código QR (Opcional)
-                        </label>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          {method.qrImageUrl ? (
-                            <div style={{ position: 'relative' }}>
-                              <img
-                                src={method.qrImageUrl}
-                                alt="QR de Pago"
-                                style={{ width: '56px', height: '56px', borderRadius: '6px', objectFit: 'cover', border: '1px solid var(--border-subtle)' }}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => handleUpdatePaymentMethod(method.id, 'qrImageUrl', '')}
-                                style={{
-                                  position: 'absolute',
-                                  top: '-5px',
-                                  right: '-5px',
-                                  background: 'var(--danger)',
-                                  color: '#fff',
-                                  border: 'none',
-                                  borderRadius: '50%',
-                                  width: '18px',
-                                  height: '18px',
-                                  fontSize: '11px',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center'
-                                }}
-                              >
-                                ×
-                              </button>
-                            </div>
-                          ) : (
-                            <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', fontSize: '0.78rem' }}>
-                              <Upload size={13} /> Subir Imagen QR
-                              <input
-                                type="file"
-                                accept="image/*"
-                                style={{ display: 'none' }}
-                                onChange={(e) => handleFileUpload(e, 'qrs', (url) => handleUpdatePaymentMethod(method.id, 'qrImageUrl', url))}
-                              />
-                            </label>
-                          )}
-                          <input
-                            type="text"
-                            value={method.instructions || ''}
-                            onChange={(e) => handleUpdatePaymentMethod(method.id, 'instructions', e.target.value)}
-                            placeholder="Instrucciones para el cliente (ej. enviar comprobante al WhatsApp)"
-                            className="form-input"
-                            style={{ flex: 1, fontSize: '0.8rem', padding: '0.45rem 0.6rem' }}
-                          />
-                        </div>
-                      </div>
+                      <div
+                        style={{
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          background: '#ffffff',
+                          transform: paymentConfig.enabled ? 'translateX(20px)' : 'translateX(0)',
+                          transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                          boxShadow: '0 1px 4px rgba(0,0,0,0.3)'
+                        }}
+                      />
                     </div>
-                  ))}
+                  </div>
                 </div>
+
+                {/* Si el plugin está desactivado, no se muestra nada de abajo */}
+                {paymentConfig.enabled && (
+                  <>
+                    {/* Lista de Métodos de Pago */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>
+                        Métodos Configurados ({paymentConfig.methods.length})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleAddPaymentMethod}
+                        className="btn btn-secondary btn-sm"
+                        style={{ gap: '0.3rem' }}
+                      >
+                        <Plus size={14} /> Añadir Método
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      {paymentConfig.methods.map((method) => (
+                        <div
+                          key={method.id}
+                          style={{
+                            background: 'var(--bg-surface-elevated)',
+                            border: '1px solid var(--border-subtle)',
+                            borderRadius: 'var(--radius-md)',
+                            padding: '1rem',
+                            opacity: method.isActive ? 1 : 0.55,
+                            filter: method.isActive ? 'none' : 'grayscale(0.85)',
+                            transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '0.75rem', gap: '0.75rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flex: 1 }}>
+                              <input
+                                type="checkbox"
+                                checked={method.isActive}
+                                onChange={(e) => handleUpdatePaymentMethod(method.id, 'isActive', e.target.checked)}
+                                style={{ accentColor: 'var(--primary)', cursor: 'pointer', width: '19px', height: '19px', marginTop: '1.25rem' }}
+                                title={method.isActive ? 'Desactivar método' : 'Activar método'}
+                              />
+                              <div style={{ flex: 1 }}>
+                                <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem', display: 'block' }}>
+                                  Nombre del Método
+                                </label>
+                                <input
+                                  type="text"
+                                  disabled={!method.isActive}
+                                  value={method.name}
+                                  onChange={(e) => handleUpdatePaymentMethod(method.id, 'name', e.target.value)}
+                                  placeholder="Nombre del método (ej. Bre-B, Nequi, Efectivo...)"
+                                  className="form-input"
+                                  style={{ fontWeight: 700, fontSize: '0.88rem', padding: '0.45rem 0.6rem', width: '100%' }}
+                                />
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePaymentMethod(method.id)}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--danger)',
+                                cursor: 'pointer',
+                                padding: '0.4rem',
+                                marginBottom: '2px'
+                              }}
+                              title="Eliminar método"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: '0.75rem', alignItems: 'start' }}>
+                            {/* Tipo de Pago */}
+                            <div>
+                              <label className="form-label" style={{ fontSize: '0.75rem' }}>Tipo</label>
+                              <select
+                                disabled={!method.isActive}
+                                value={method.type}
+                                onChange={(e) => handleUpdatePaymentMethod(method.id, 'type', e.target.value as PaymentType)}
+                                className="form-select"
+                                style={{ fontSize: '0.8rem', padding: '0.45rem' }}
+                              >
+                                <option value="bre-b">Bre-B (QR)</option>
+                                <option value="transfer">Transferencia</option>
+                                <option value="cash">Efectivo</option>
+                                <option value="card">Tarjeta</option>
+                                <option value="other">Otro</option>
+                              </select>
+                            </div>
+
+                            {/* Datos de Cuenta / Llave o Descripción si es Efectivo */}
+                            <div>
+                              <label className="form-label" style={{ fontSize: '0.75rem' }}>
+                                {method.type === 'cash' ? 'Descripción' : 'Datos de Cuenta / Llave'}
+                              </label>
+                              <input
+                                type="text"
+                                disabled={!method.isActive}
+                                value={method.accountDetails || ''}
+                                onChange={(e) => handleUpdatePaymentMethod(method.id, 'accountDetails', e.target.value)}
+                                placeholder={
+                                  method.type === 'cash'
+                                    ? 'Ej. Pago contra entrega en efectivo, billetes sencillos'
+                                    : 'Ej. Nequi: 3001234567 / Ahorros 123-456'
+                                }
+                                className="form-input"
+                                style={{ fontSize: '0.82rem', padding: '0.45rem 0.6rem' }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Subida de Imagen de Código QR (Deshabilitado si el tipo es Efectivo) */}
+                          {method.type !== 'cash' && (
+                            <div style={{ marginTop: '0.75rem' }}>
+                              <label className="form-label" style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                <QrCode size={13} color="var(--primary)" /> QR (Opcional)
+                              </label>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                {method.qrImageUrl ? (
+                                  <div style={{ position: 'relative' }}>
+                                    <img
+                                      src={method.qrImageUrl}
+                                      alt="QR de Pago"
+                                      style={{ width: '56px', height: '56px', borderRadius: '6px', objectFit: 'cover', border: '1px solid var(--border-subtle)' }}
+                                    />
+                                    <button
+                                      type="button"
+                                      disabled={!method.isActive}
+                                      onClick={() => handleUpdatePaymentMethod(method.id, 'qrImageUrl', '')}
+                                      style={{
+                                        position: 'absolute',
+                                        top: '-5px',
+                                        right: '-5px',
+                                        background: 'var(--danger)',
+                                        color: '#fff',
+                                        border: 'none',
+                                        borderRadius: '50%',
+                                        width: '18px',
+                                        height: '18px',
+                                        fontSize: '11px',
+                                        cursor: method.isActive ? 'pointer' : 'not-allowed',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
+                                      }}
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <label
+                                    className="btn btn-secondary btn-sm"
+                                    style={{
+                                      cursor: method.isActive ? 'pointer' : 'not-allowed',
+                                      fontSize: '0.78rem',
+                                      opacity: method.isActive ? 1 : 0.6
+                                    }}
+                                  >
+                                    <Upload size={13} /> Subir Imagen QR
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      disabled={!method.isActive}
+                                      style={{ display: 'none' }}
+                                      onChange={(e) => handleFileUpload(e, 'qrs', (url) => handleUpdatePaymentMethod(method.id, 'qrImageUrl', url))}
+                                    />
+                                  </label>
+                                )}
+                                <input
+                                  type="text"
+                                  disabled={!method.isActive}
+                                  value={method.instructions || ''}
+                                  onChange={(e) => handleUpdatePaymentMethod(method.id, 'instructions', e.target.value)}
+                                  placeholder="Instrucciones para el cliente (ej. enviar comprobante al WhatsApp)"
+                                  className="form-input"
+                                  style={{ flex: 1, fontSize: '0.8rem', padding: '0.45rem 0.6rem' }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -1331,9 +1423,91 @@ export const RestaurantSettingsModal: React.FC<RestaurantSettingsModalProps> = (
                       <input type="checkbox" checked={modalities.pickup} readOnly style={{ accentColor: 'var(--primary)' }} />
                     </div>
                   </div>
-                </div>
 
-                {/* HORARIOS DE ATENCIÓN ESTRUCTURADOS */}
+                  {/* Configuración de Tarifa Estándar de Domicilio */}
+                  {modalities.delivery && (
+                    <div
+                      style={{
+                        marginTop: '0.85rem',
+                        padding: '1rem',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'var(--bg-surface-elevated)',
+                        border: '1px solid var(--border-subtle)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.75rem'
+                      }}
+                    >
+                      <div
+                        onClick={() =>
+                          setModalities({
+                            ...modalities,
+                            deliveryFeeEnabled: !modalities.deliveryFeeEnabled
+                          })
+                        }
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          cursor: 'pointer',
+                          userSelect: 'none'
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <Bike size={15} color="var(--primary)" /> Cobrar tarifa fija por domicilio
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            Suma un recargo estándar a la factura cuando el cliente elija domicilio.
+                          </div>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(modalities.deliveryFeeEnabled)}
+                          onChange={() => {}}
+                          style={{
+                            accentColor: 'var(--primary)',
+                            transform: 'scale(1.2)',
+                            cursor: 'pointer'
+                          }}
+                        />
+                      </div>
+
+                      {modalities.deliveryFeeEnabled && (
+                        <div style={{ paddingTop: '0.5rem', borderTop: '1px dashed var(--border-subtle)' }}>
+                          <label className="form-label" style={{ fontSize: '0.8rem', marginBottom: '0.35rem' }}>
+                            Precio estándar del domicilio ({currencySymbol})
+                          </label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '0.95rem' }}>
+                              {currencySymbol}
+                            </span>
+                            <input
+                              type="text"
+                              value={formatCurrencyInput(modalities.deliveryFee ?? '')}
+                              onChange={(e) => {
+                                const parsedVal = parseCurrencyInput(e.target.value);
+                                setModalities({
+                                  ...modalities,
+                                  deliveryFee: parsedVal
+                                });
+                              }}
+                              placeholder="Ej. 5.000"
+                              className="form-input"
+                              style={{ maxWidth: '200px' }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 5: HORARIOS DE ATENCIÓN */}
+            {activeTab === 'hours' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <div className="form-group">
                   <OpeningHoursPicker
                     value={openingHours}
@@ -1343,7 +1517,7 @@ export const RestaurantSettingsModal: React.FC<RestaurantSettingsModalProps> = (
               </div>
             )}
 
-            {/* TAB 5: UBICACIÓN GOOGLE MAPS */}
+            {/* TAB 6: UBICACIÓN GOOGLE MAPS */}
             {activeTab === 'location' && (
               <div>
                 <div className="form-group">
@@ -1365,6 +1539,7 @@ export const RestaurantSettingsModal: React.FC<RestaurantSettingsModalProps> = (
               </div>
             )}
           </div>
+        </div>
 
           <div className="modal-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>

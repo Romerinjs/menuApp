@@ -14,7 +14,9 @@ import {
   QrCode,
   Upload,
   Eye,
-  Check
+  Check,
+  BadgeCheck,
+  Trash2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { OrderCheckoutData, OrderModality } from '../../types/cart';
@@ -58,6 +60,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ restaurant, onClos
   );
   const [voucherUrl, setVoucherUrl] = useState<string>(savedDraft?.voucherUrl || '');
   const [isUploadingVoucher, setIsUploadingVoucher] = useState(false);
+  const [voucherError, setVoucherError] = useState<string | null>(null);
   const [zoomedQrUrl, setZoomedQrUrl] = useState<string | null>(null);
 
   const [isSent, setIsSent] = useState(false);
@@ -114,15 +117,23 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ restaurant, onClos
     if (!file) return;
 
     setIsUploadingVoucher(true);
+    setVoucherError(null);
     try {
       const res = await uploadTenantAsset(file, restaurant.slug, 'receipts');
       setVoucherUrl(res.url);
-    } catch {
-      console.error('Error al subir comprobante');
+    } catch (err: any) {
+      console.error('[Checkout] Error al subir comprobante a Cloudflare:', err);
+      setVoucherError('No se pudo subir a Cloudflare R2. Intenta nuevamente.');
     } finally {
       setIsUploadingVoucher(false);
     }
   };
+
+  const deliveryFee =
+    modality === 'delivery' && restaurant.modalities?.deliveryFeeEnabled
+      ? (restaurant.modalities?.deliveryFee || 0)
+      : 0;
+  const totalToPay = subtotal + deliveryFee;
 
   const handleSendOrder = () => {
     if (!canSubmit) return;
@@ -134,7 +145,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ restaurant, onClos
       deliveryMapsUrl: modality === 'delivery' ? deliveryMapsUrl : undefined,
       generalNotes: generalNotes.trim(),
       selectedPaymentMethod: isPaymentEnabled && selectedMethod ? selectedMethod.name : undefined,
-      paymentVoucherUrl: voucherUrl || undefined
+      paymentVoucherUrl: voucherUrl || undefined,
+      deliveryFee,
+      total: totalToPay
     };
 
     const whatsappUrl = generateWhatsAppLink(restaurant, items, checkoutData);
@@ -376,43 +389,72 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ restaurant, onClos
                         </div>
                       )}
 
-                      {/* Slot para adjuntar comprobante de pago */}
-                      <div>
-                        <label className="form-label" style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          <Upload size={13} color="var(--primary)" /> Comprobante de Pago (Opcional)
-                        </label>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                          {voucherUrl ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <img
-                                src={voucherUrl}
-                                alt="Comprobante"
-                                style={{ width: '38px', height: '38px', borderRadius: '6px', objectFit: 'cover', border: '1px solid var(--border-subtle)' }}
-                              />
-                              <span style={{ fontSize: '0.78rem', color: 'var(--success)', fontWeight: 600 }}>
-                                ¡Comprobante listo!
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => setVoucherUrl('')}
-                                style={{ background: 'transparent', border: 'none', color: 'var(--danger)', fontSize: '0.75rem', cursor: 'pointer' }}
-                              >
-                                Quitar
-                              </button>
+                      {/* Slot para adjuntar comprobante de pago (Oculto para Efectivo Contraentrega) */}
+                      {selectedMethod.type !== 'cash' && (
+                        <div style={{ marginTop: '0.75rem' }}>
+                          <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.45rem', display: 'block' }}>
+                            Comprobante de Pago
+                          </label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                            {voucherUrl ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <img
+                                      src={voucherUrl}
+                                      alt="Comprobante"
+                                      style={{ width: '38px', height: '38px', borderRadius: '6px', objectFit: 'cover', border: '1px solid var(--border-subtle)' }}
+                                    />
+                                    <BadgeCheck size={18} color="var(--success)" />
+                                  </div>
+                                  <span style={{ fontSize: '0.68rem', color: 'var(--success)', fontWeight: 700, lineHeight: 1.1, marginTop: '4px' }}>
+                                    ¡Comprobante listo!
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setVoucherUrl('');
+                                    setVoucherError(null);
+                                  }}
+                                  title="Eliminar comprobante"
+                                  aria-label="Eliminar comprobante"
+                                  style={{
+                                    background: 'rgba(239, 68, 68, 0.12)',
+                                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                                    color: 'var(--danger)',
+                                    padding: '0.35rem 0.45rem',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'all 0.2s ease'
+                                  }}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            ) : (
+                              <label className="btn btn-secondary btn-sm" style={{ cursor: isUploadingVoucher ? 'wait' : 'pointer', fontSize: '0.78rem', opacity: isUploadingVoucher ? 0.7 : 1, gap: '0.4rem' }}>
+                                <Upload size={14} /> {isUploadingVoucher ? 'Subiendo a Cloudflare...' : 'Subir Comprobante'}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  disabled={isUploadingVoucher}
+                                  style={{ display: 'none' }}
+                                  onChange={handleFileUpload}
+                                />
+                              </label>
+                            )}
+                          </div>
+                          {voucherError && (
+                            <div style={{ marginTop: '0.35rem', fontSize: '0.74rem', color: '#ff4d4f', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              ⚠️ {voucherError}
                             </div>
-                          ) : (
-                            <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', fontSize: '0.78rem' }}>
-                              <Upload size={13} /> {isUploadingVoucher ? 'Subiendo...' : 'Adjuntar Comprobante'}
-                              <input
-                                type="file"
-                                accept="image/*"
-                                style={{ display: 'none' }}
-                                onChange={handleFileUpload}
-                              />
-                            </label>
                           )}
                         </div>
-                      </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -432,15 +474,40 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ restaurant, onClos
                 />
               </div>
 
-              {/* Resumen del Subtotal */}
+              {/* Resumen del Total y Domicilio */}
               <div style={{ background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', padding: '0.9rem', border: '1px solid var(--border-subtle)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Productos ({items.length}):</span>
                   <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{formatCurrency(subtotal, restaurant.currencySymbol)}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', marginTop: '0.5rem' }}>
-                  <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Subtotal a pagar:</span>
-                  <span style={{ fontWeight: 800, fontSize: '1.15rem', color: 'var(--primary)' }}>{formatCurrency(subtotal, restaurant.currencySymbol)}</span>
+
+                {modality === 'delivery' && restaurant.modalities?.deliveryFeeEnabled && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Bike size={14} color="var(--primary)" /> Costo de Domicilio:
+                    </span>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: (restaurant.modalities?.deliveryFee || 0) > 0 ? 'var(--text-primary)' : 'var(--success)' }}>
+                      {(restaurant.modalities?.deliveryFee || 0) > 0
+                        ? formatCurrency(restaurant.modalities?.deliveryFee || 0, restaurant.currencySymbol)
+                        : 'Gratis'}
+                    </span>
+                  </div>
+                )}
+
+                {modality === 'pickup' && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                    <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <ShoppingBag size={13} /> Retiro en Local:
+                    </span>
+                    <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Sin costo de envío</span>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', marginTop: '0.4rem' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Total a pagar:</span>
+                  <span style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--primary)' }}>
+                    {formatCurrency(totalToPay, restaurant.currencySymbol)}
+                  </span>
                 </div>
               </div>
             </div>

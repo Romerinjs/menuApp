@@ -54,7 +54,12 @@ export function buildWhatsAppMessage(
   if (checkout.selectedPaymentMethod) {
     message += `*Método de Pago:* ${checkout.selectedPaymentMethod}\n`;
     if (checkout.paymentVoucherUrl) {
-      message += `*Comprobante de Pago:* Adjuntado / Cargado\n`;
+      // Si es una URL pública válida (por ej. Cloudflare R2), imprimir el enlace directo
+      if (checkout.paymentVoucherUrl.startsWith('http://') || checkout.paymentVoucherUrl.startsWith('https://')) {
+        message += `*Comprobante de Pago:* ${checkout.paymentVoucherUrl}\n`;
+      } else {
+        message += `*Comprobante de Pago:* Adjuntado / Cargado\n`;
+      }
     }
   }
 
@@ -68,9 +73,19 @@ export function buildWhatsAppMessage(
     }
   });
 
-  // Subtotal único (cobro en físico por domiciliario o caja)
+  // Cálculo de valores y domicilio
+  const deliveryFee = checkout.deliveryFee || 0;
+  const isDeliveryWithFee = checkout.modality === 'delivery' && deliveryFee > 0;
+  const finalTotal = checkout.total !== undefined ? checkout.total : (subtotal + (checkout.modality === 'delivery' ? deliveryFee : 0));
+
   message += `\n━━━━━━━━━━━━━━━━━━━━\n`;
-  message += `*SUBTOTAL A PAGAR:* ${formatCurrency(subtotal, currency)}\n`;
+  if (isDeliveryWithFee) {
+    message += `*Subtotal Productos:* ${formatCurrency(subtotal, currency)}\n`;
+    message += `*Costo de Domicilio:* ${formatCurrency(deliveryFee, currency)}\n`;
+    message += `*TOTAL A PAGAR:* ${formatCurrency(finalTotal, currency)}\n`;
+  } else {
+    message += `*TOTAL A PAGAR:* ${formatCurrency(finalTotal, currency)}\n`;
+  }
   message += `━━━━━━━━━━━━━━━━━━━━\n`;
   message += `_(Cobro en físico / contra entrega)_\n`;
   message += `_Pedido realizado desde el Menú Virtual_`;

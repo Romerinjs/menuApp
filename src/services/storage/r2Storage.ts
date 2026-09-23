@@ -1,28 +1,10 @@
 /**
- * Servicio de Almacenamiento Cloudflare R2 / S3 con aislamiento Multi-Tenant.
+ * Servicio de Almacenamiento Cloudflare R2 con aislamiento Multi-Tenant.
  * Estructura de carpetas por tenant para evitar fugas de datos entre restaurantes:
  * tenants/{tenantSlug}/{folder}/{timestamp}-{cleanFileName}
  */
 
-export type StorageFolder = 'logos' | 'covers' | 'dishes' | 'qrs' | 'receipts';
-
-interface R2Config {
-  accountId: string;
-  accessKeyId: string;
-  secretAccessKey: string;
-  bucketName: string;
-  publicUrl: string;
-  endpoint: string;
-}
-
-const getR2Config = (): R2Config => ({
-  accountId: import.meta.env.VITE_R2_ACCOUNT_ID || '',
-  accessKeyId: import.meta.env.VITE_R2_ACCESS_KEY_ID || '',
-  secretAccessKey: import.meta.env.VITE_R2_SECRET_ACCESS_KEY || '',
-  bucketName: import.meta.env.VITE_R2_BUCKET_NAME || 'menuapp',
-  publicUrl: import.meta.env.VITE_R2_PUBLIC_URL || 'https://pub-cb1a418f73b9409581db1329f8f1a090.r2.dev',
-  endpoint: import.meta.env.VITE_S3_API_ENDPOINT || ''
-});
+export type StorageFolder = 'logos' | 'covers' | 'dishes' | 'qrs' | 'receipts' | 'promo';
 
 /**
  * Convierte un archivo local File en Base64 (DataURL) garantizado
@@ -44,54 +26,69 @@ export function fileToBase64(file: File | Blob): Promise<string> {
 
 /**
  * Sube un archivo a Cloudflare R2 manteniendo aislamiento por Tenant Slug.
- * Si no hay conectividad directa o hay restricción CORS en S3 en el navegador,
- * realiza fallback automático a DataURL Base64 de alta disponibilidad.
+ * Envía la petición al endpoint de almacenamiento `/api/storage/upload`
+ * que autentica con AWS SigV4 de forma segura y provee logs exhaustivos.
  */
 export async function uploadTenantAsset(
   file: File | Blob,
   tenantSlug: string,
   folder: StorageFolder,
   customFileName?: string
-): Promise<{ url: string; storageType: 'r2' | 'base64'; path: string }> {
-  const config = getR2Config();
+): Promise<{ url: string; storageType: 'r2'; path: string }> {
   const safeSlug = (tenantSlug || 'general').toLowerCase().replace(/[^a-z0-9-_]/g, '-');
-  const timestamp = Date.now();
   const rawName = customFileName || (file instanceof File ? file.name : 'asset.png');
   const cleanName = rawName.toLowerCase().replace(/[^a-z0-9._-]/g, '-');
-  const isolatedPath = `tenants/${safeSlug}/${folder}/${timestamp}-${cleanName}`;
+  const contentType = file.type || 'image/jpeg';
 
-  // Intentar subida directa si hay endpoint público o presigned configurado
-  if (config.publicUrl && config.endpoint) {
-    try {
-      // Si el bucket o worker proxy tiene endpoint habilitado
-      const targetUrl = `${config.endpoint}/${isolatedPath}`;
-      const response = await fetch(targetUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': file.type || 'application/octet-stream'
-        },
-        body: file
-      });
+  console.group(`[Cloudflare R2] ⬆️ Subida de Asset: ${cleanName}`);
+  console.log('Parámetros de subida:', {
+    tenant: safeSlug,
+    carpeta: folder,
+    archivo: cleanName,
+    tamañoBytes: file.size,
+    tipoMime: contentType
+  });
 
-      if (response.ok) {
-        const publicFileUrl = `${config.publicUrl.replace(/\/$/, '')}/${isolatedPath}`;
-        return {
-          url: publicFileUrl,
-          storageType: 'r2',
-          path: isolatedPath
-        };
-      }
-    } catch {
-      // Fallback a Base64 si fetch directo es bloqueado por CORS sin proxy
-      console.info('[R2 Storage] Fallback a almacenamiento local seguro.');
+  try {
+    const fileBase64 = await fileToBase64(file);
+
+    const response = await fetch('/api/storage/upload', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        fileBase64,
+        tenantSlug: safeSlug,
+        folder,
+        fileName: cleanName,
+        contentType
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMsg = errorData.error || `HTTP ${response.status}: Error al subir a Cloudflare R2`;
+      console.error('[Cloudflare R2] ❌ Error del servidor:', errorData);
+      console.groupEnd();
+      throw new Error(errorMsg);
     }
-  }
 
-  // Fallback seguro a Base64
-  const base64Url = await fileToBase64(file);
-  return {
-    url: base64Url,
-    storageType: 'base64',
-    path: isolatedPath
-  };
+    const result = await response.json();
+    console.log('[Cloudflare R2] ✅ Subida exitosa a Cloudflare R2:', {
+      url: result.url,
+      path: result.path
+    });
+    console.groupEnd();
+
+    return {
+      url: result.url,
+      storageType: 'r2',
+      path: result.path
+    };
+  } catch (error: any) {
+    console.error('[Cloudflare R2] ❌ Fallo al procesar la subida:', error?.message || error);
+    console.groupEnd();
+    throw error;
+  }
 }

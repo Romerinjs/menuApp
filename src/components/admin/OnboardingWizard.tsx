@@ -43,6 +43,7 @@ import { useScrollReveal } from '../../hooks/useScrollReveal';
 import { OpeningHoursPicker } from '../common/OpeningHoursPicker';
 import { CompactSocialLinksPicker } from './CompactSocialLinksPicker';
 import { CountryCodeSelect } from '../common/CountryCodeSelect';
+import { formatCurrencyInput, parseCurrencyInput } from '../../utils/currency';
 
 interface OnboardingWizardProps {
   initialRestaurant: Restaurant;
@@ -95,6 +96,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     palette: initialRestaurant.palette || PRESET_PALETTES[0],
     logoUrl: initialRestaurant.logoUrl || '',
     coverUrl: initialRestaurant.coverUrl || '',
+    promotionalImageUrl: initialRestaurant.promotionalImageUrl || '',
     tagline: initialRestaurant.tagline || 'Sabores Auténticos & Ingredientes 100% Seleccionados',
     shortDescription: initialRestaurant.shortDescription || '',
     story: initialRestaurant.story || '',
@@ -279,10 +281,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     setNewDishSlug(generatedSlug);
   };
 
-  // Subida de imagen para logo o plato usando R2
+  // Subida de imagen para logo, portada, plato o promo usando R2
   const handleUploadFile = async (
     e: React.ChangeEvent<HTMLInputElement>,
-    folder: 'logos' | 'covers' | 'dishes',
+    folder: 'logos' | 'covers' | 'dishes' | 'promo',
     setter: (url: string) => void
   ) => {
     const file = e.target.files?.[0];
@@ -356,8 +358,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   // Platos
   const handleAddDish = () => {
     if (!newDishName.trim() || !newDishPrice) return;
-    const priceNum = parseFloat(newDishPrice.replace(/[^\d.]/g, ''));
-    if (isNaN(priceNum) || priceNum <= 0) return;
+    const priceNum = parseCurrencyInput(newDishPrice);
+    if (priceNum <= 0) return;
 
     const newDish: Dish = {
       id: `dish-${Date.now()}`,
@@ -565,7 +567,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
                   <div className="form-group">
                     <label className="form-label">Tipo de Cocina</label>
                     <input
@@ -601,7 +603,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Imagen de Portada / Historia</label>
+                    <label className="form-label">Portada / Fondo Header</label>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <input
                         type="text"
@@ -618,6 +620,29 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                           accept="image/*"
                           style={{ display: 'none' }}
                           onChange={(e) => handleUploadFile(e, 'covers', (url) => setFormData({ ...formData, coverUrl: url }))}
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Imagen Promocional (Slide)</label>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input
+                        type="text"
+                        value={formData.promotionalImageUrl || ''}
+                        onChange={(e) => setFormData({ ...formData, promotionalImageUrl: e.target.value })}
+                        placeholder="https://..."
+                        className="form-input"
+                        style={{ flex: 1, fontSize: '0.8rem' }}
+                      />
+                      <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer' }} title="Subir a Cloudflare">
+                        <Upload size={14} />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={(e) => handleUploadFile(e, 'promo', (url) => setFormData({ ...formData, promotionalImageUrl: url }))}
                         />
                       </label>
                     </div>
@@ -1107,6 +1132,80 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                       <input type="checkbox" checked={formData.modalities.pickup} readOnly style={{ accentColor: 'var(--primary)' }} />
                     </div>
                   </div>
+
+                  {formData.modalities.delivery && (
+                    <div
+                      style={{
+                        marginTop: '0.85rem',
+                        padding: '0.85rem 1rem',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'var(--bg-surface-elevated)',
+                        border: '1px solid var(--border-subtle)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.65rem'
+                      }}
+                    >
+                      <div
+                        onClick={() =>
+                          setFormData({
+                            ...formData,
+                            modalities: {
+                              ...formData.modalities,
+                              deliveryFeeEnabled: !formData.modalities.deliveryFeeEnabled
+                            }
+                          })
+                        }
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          cursor: 'pointer',
+                          userSelect: 'none'
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <Bike size={15} color="var(--primary)" /> Tarifa estándar para domicilios
+                          </div>
+                          <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                            Suma un valor fijo cuando el pedido sea con entrega a domicilio.
+                          </div>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(formData.modalities.deliveryFeeEnabled)}
+                          onChange={() => {}}
+                          style={{ accentColor: 'var(--primary)', transform: 'scale(1.15)', cursor: 'pointer' }}
+                        />
+                      </div>
+
+                      {formData.modalities.deliveryFeeEnabled && (
+                        <div style={{ paddingTop: '0.4rem', borderTop: '1px dashed var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontWeight: 700, color: 'var(--primary)' }}>$</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="500"
+                            value={formData.modalities.deliveryFee ?? ''}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              setFormData({
+                                ...formData,
+                                modalities: {
+                                  ...formData.modalities,
+                                  deliveryFee: isNaN(val) ? 0 : Math.max(0, val)
+                                }
+                              });
+                            }}
+                            placeholder="Costo (ej. 5000)"
+                            className="form-input"
+                            style={{ maxWidth: '180px' }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-group">
@@ -1203,8 +1302,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                       <input
                         type="text"
                         value={newDishPrice}
-                        onChange={(e) => setNewDishPrice(e.target.value)}
-                        placeholder="Ej. 24000"
+                        onChange={(e) => setNewDishPrice(formatCurrencyInput(e.target.value))}
+                        placeholder="Ej. 24.000"
                         className="form-input"
                       />
                     </div>

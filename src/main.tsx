@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { App } from './App';
 import { TenantProvider } from './context/TenantContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { ToastProvider } from './context/ToastContext';
 
 // Estilos globales y específicos
 import './styles/variables.css';
@@ -14,7 +15,9 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <ThemeProvider>
       <TenantProvider>
-        <App />
+        <ToastProvider>
+          <App />
+        </ToastProvider>
       </TenantProvider>
     </ThemeProvider>
   </React.StrictMode>
